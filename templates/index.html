@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulasi Monte Carlo Risiko Saham Tesla | TA-03</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#ringkasan">TA-03 Simulasi Monte Carlo</a>
+    <nav class="nav" id="nav">
+      <a href="#ringkasan" data-section="ringkasan">Ringkasan</a>
+      <a href="#langkah-1" data-section="langkah-1">1. Eksplorasi Data</a>
+      <a href="#langkah-2" data-section="langkah-2">2. Simulasi</a>
+      <a href="#langkah-3" data-section="langkah-3">3. Analisis Risiko</a>
+      <a href="#kesimpulan" data-section="kesimpulan">Kesimpulan</a>
+    </nav>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+  <!-- ========== RINGKASAN ========== -->
+  <section id="ringkasan" class="section hero">
+    <p class="eyebrow">Tugas Akhir 03 &middot; Data-Driven Monte Carlo Simulation</p>
+    <h1>Berapa Peluang Harga Saham Tesla Turun Lebih dari 10% dalam 30 Hari?</h1>
+    <p class="lead">Aplikasi ini menjawab pertanyaan tersebut dengan simulasi Monte Carlo. Parameter simulasi tidak ditentukan sembarangan, tetapi dihitung dari data harga saham Tesla yang sebenarnya.</p>
+
+    <div class="meta">
+      <div><span>Nama</span><b>Selsa Shafana Alfiyani</b></div>
+      <div><span>NIM</span><b>301240041</b></div>
+      <div><span>Topik (digit terakhir NIM = 1)</span><b>Forecasting Harga Saham</b></div>
+      <div><span>Dataset</span><b>Tesla Stock Dataset (Kaggle), {{ d.jumlah_baris|idn }} baris harian</b></div>
+    </div>
+
+    <h2 class="sub">Alur pengerjaan</h2>
+    <div class="steps">
+      <article class="step">
+        <span class="step-no">1</span>
+        <h3>Eksplorasi Data</h3>
+        <p>Memuat data, membersihkannya, lalu menghitung rata-rata (&mu;) dan standar deviasi (&sigma;) return harian.</p>
+        <a class="btn btn-outline" href="#langkah-1">Buka Langkah 1</a>
+      </article>
+      <article class="step">
+        <span class="step-no">2</span>
+        <h3>Membangun Simulasi</h3>
+        <p>Membangkitkan ribuan jalur harga 30 hari ke depan memakai &mu; dan &sigma; dari data.</p>
+        <a class="btn btn-outline" href="#langkah-2">Buka Langkah 2</a>
+      </article>
+      <article class="step">
+        <span class="step-no">3</span>
+        <h3>Analisis Risiko</h3>
+        <p>Menghitung probabilitas harga turun melebihi batas dan menampilkannya pada histogram.</p>
+        <a class="btn btn-outline" href="#langkah-3">Buka Langkah 3</a>
+      </article>
+    </div>
+    <a class="btn btn-primary btn-lg" href="#langkah-1">Mulai dari Langkah 1</a>
+  </section>
+
+  <!-- ========== LANGKAH 1 ========== -->
+  <section id="langkah-1" class="section">
+    <p class="eyebrow">Langkah 1</p>
+    <h2>Eksplorasi Data</h2>
+    <p class="lead">Tujuannya mengubah data harga mentah menjadi dua angka yang dipakai simulasi: rata-rata dan standar deviasi return harian.</p>
+
+    <h3 class="sub">1.1 Dataset</h3>
+    <div class="grid4">
+      <div class="stat"><span>Jumlah baris</span><b>{{ d.jumlah_baris|idn }}</b></div>
+      <div class="stat"><span>Tanggal awal</span><b>{{ d.tanggal_awal }}</b></div>
+      <div class="stat"><span>Tanggal akhir</span><b>{{ d.tanggal_akhir }}</b></div>
+      <div class="stat"><span>Jumlah kolom</span><b>{{ d.kolom|length }}</b></div>
+    </div>
+    <details class="detail">
+      <summary>Lihat 5 baris pertama data</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>{% for k in d.kolom %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for baris in d.cuplikan %}
+            <tr>{% for sel in baris %}<td>{{ sel }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <h3 class="sub">1.2 Data Cleaning</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pemeriksaan</th><th>Hasil</th><th>Tindakan</th></tr></thead>
+        <tbody>
+          <tr><td>Nilai kosong (null)</td><td>{{ d.jumlah_kosong }}</td><td>Tidak ada yang dihapus</td></tr>
+          <tr><td>Tanggal ganda</td><td>{{ d.jumlah_ganda }}</td><td>Tidak ada yang dihapus</td></tr>
+          <tr><td>Urutan tanggal</td><td>Diurutkan dari yang terlama</td><td>Selesai</td></tr>
+          <tr><td>Outlier ekstrem (return harian di luar &plusmn;50%)</td><td>{{ d.outlier_ekstrem }}</td><td>Tidak ada yang dihapus</td></tr>
+          <tr><td>Return di luar 3 standar deviasi</td><td>{{ d.lebih_3_sigma }} dari {{ d.jumlah_return|idn }}</td><td>Dipertahankan</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Return terkecil {{ (d.return_min * 100)|idn(2) }}% dan terbesar {{ (d.return_max * 100)|idn(2) }}% adalah pergerakan harga yang benar-benar terjadi pada saham Tesla, bukan kesalahan data. Karena itu tetap dipertahankan agar risiko tidak diremehkan.</p>
+
+    <h3 class="sub">1.3 Parameter Extraction</h3>
+    <p>Variabel acak yang dipilih adalah <b>return harian</b> dari kolom <b>Adj Close</b>, yaitu harga penutupan yang sudah disesuaikan dengan aksi korporasi seperti stock split.</p>
+    <p class="formula">return harian = (harga hari ini &minus; harga kemarin) &divide; harga kemarin</p>
+    <div class="grid4">
+      <div class="stat accent"><span>Mean harian (&mu;)</span><b>{{ (d.mu * 100)|idn(4) }}%</b></div>
+      <div class="stat accent"><span>Standar deviasi (&sigma;)</span><b>{{ (d.sigma * 100)|idn(4) }}%</b></div>
+      <div class="stat"><span>Skewness</span><b>{{ d.skewness|idn(2) }}</b></div>
+      <div class="stat"><span>Kurtosis berlebih</span><b>{{ d.kurtosis|idn(2) }}</b></div>
+    </div>
+
+    <h3 class="sub">1.4 Histogram Data Asli</h3>
+    <div class="chart-box"><canvas id="chart-return" aria-label="Histogram return harian Tesla"></canvas></div>
+    <p class="caption">Batang biru adalah return harian Tesla. Garis merah adalah kurva Normal dengan &mu; dan &sigma; yang sama, sebagai pembanding.</p>
+    <p class="note">Bentuknya seperti lonceng dan terpusat di sekitar nol, jadi cukup mendekati distribusi Normal. Puncaknya lebih runcing dan ekornya lebih tebal dari kurva Normal (kurtosis berlebih sekitar {{ d.kurtosis|idn(1) }}), artinya kejadian ekstrem lebih sering muncul daripada perkiraan distribusi Normal. Simulasi tetap memakai <code>np.random.normal(&mu;, &sigma;)</code> sebagai pendekatan, dan keterbatasan ini dicatat pada kesimpulan.</p>
+  </section>
+
+  <!-- ========== LANGKAH 2 ========== -->
+  <section id="langkah-2" class="section">
+    <p class="eyebrow">Langkah 2</p>
+    <h2>Membangun Simulasi Monte Carlo</h2>
+    <p class="lead">Setiap skenario adalah satu kemungkinan perjalanan harga selama beberapa hari. Dengan ribuan skenario, kita bisa melihat seberapa sering harga berakhir turun jauh.</p>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3>Ketentuan simulasi</h3>
+        <ul class="plain">
+          <li>Jumlah skenario minimal 5.000 jalur.</li>
+          <li>Return acak dari <code>np.random.normal(&mu;, &sigma;)</code> dengan &mu; dan &sigma; dari Langkah 1.</li>
+          <li>Harga dihitung berantai dengan rumus di bawah.</li>
+          <li>Harga awal adalah Adj Close terakhir pada dataset: <b>{{ d.harga_awal|idn(2) }} USD</b> ({{ d.tanggal_akhir }}).</li>
+        </ul>
+        <p class="formula">price<sub>t</sub> = price<sub>t&minus;1</sub> &times; (1 + return acak)</p>
+      </div>
+
+      <form class="panel" id="form-sim" autocomplete="off">
+        <h3>Atur simulasi</h3>
+
+        <label class="field">
+          <span>Jumlah skenario</span>
+          <div class="pair">
+            <input type="range" id="skenario-range" min="{{ b.min_skenario }}" max="{{ b.max_skenario }}" step="1000" value="{{ b.default_skenario }}">
+            <input type="number" id="skenario" min="{{ b.min_skenario }}" max="{{ b.max_skenario }}" step="1000" value="{{ b.default_skenario }}">
+          </div>
+          <small>{{ b.min_skenario|idn }} sampai {{ b.max_skenario|idn }}</small>
+        </label>
+
+        <label class="field">
+          <span>Jumlah hari ke depan</span>
+          <div class="pair">
+            <input type="range" id="hari-range" min="{{ b.min_hari }}" max="{{ b.max_hari }}" step="1" value="{{ b.default_hari }}">
+            <input type="number" id="hari" min="{{ b.min_hari }}" max="{{ b.max_hari }}" step="1" value="{{ b.default_hari }}">
+          </div>
+          <small>Soal meminta 30 hari</small>
+        </label>
+
+        <label class="field">
+          <span>Seed (default NIM)</span>
+          <input type="number" id="seed" min="0" value="{{ b.seed }}">
+          <small>Seed yang sama menghasilkan hasil yang sama setiap dijalankan</small>
+        </label>
+
+        <div class="actions">
+          <button type="submit" class="btn btn-primary" id="btn-run">Jalankan Simulasi</button>
+          <button type="button" class="btn btn-outline" id="btn-reset">Kembalikan ke Default</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="status" id="status">Menyiapkan simulasi...</div>
+
+    <h3 class="sub">Contoh jalur harga</h3>
+    <div class="chart-box"><canvas id="chart-jalur" aria-label="Contoh jalur harga simulasi"></canvas></div>
+    <p class="caption" id="caption-jalur">Garis biru adalah contoh jalur harga. Garis merah putus-putus adalah batas penurunan harga.</p>
+  </section>
+
+  <!-- ========== LANGKAH 3 ========== -->
+  <section id="langkah-3" class="section">
+    <p class="eyebrow">Langkah 3</p>
+    <h2>Analisis Risiko</h2>
+    <p class="lead">Probabilitas dihitung dari berapa banyak skenario yang harga akhirnya berada di bawah batas penurunan.</p>
+    <p class="formula">P(Event) = jumlah skenario yang memenuhi kondisi &divide; total skenario</p>
+
+    <div class="panel inline-control">
+      <label class="field">
+        <span>Batas penurunan harga: <b id="batas-label">{{ b.default_batas }}%</b></span>
+        <div class="pair">
+          <input type="range" id="batas-range" min="{{ b.min_batas }}" max="{{ b.max_batas }}" step="0.5" value="{{ b.default_batas }}">
+          <input type="number" id="batas" min="{{ b.min_batas }}" max="{{ b.max_batas }}" step="0.5" value="{{ b.default_batas }}">
+        </div>
+        <small>Soal menggunakan 10%. Geser untuk melihat batas lain.</small>
+      </label>
+    </div>
+
+    <div class="result-main" id="result-main">
+      <span id="result-judul">Probabilitas harga turun lebih dari 10% dalam 30 hari</span>
+      <b id="result-prob">-</b>
+      <small id="result-detail">-</small>
+    </div>
+
+    <div class="grid4">
+      <div class="stat"><span>Harga awal</span><b id="m-awal">-</b></div>
+      <div class="stat"><span>Batas harga</span><b id="m-batas">-</b></div>
+      <div class="stat"><span>Rata-rata harga akhir</span><b id="m-rata">-</b></div>
+      <div class="stat"><span>Median harga akhir</span><b id="m-median">-</b></div>
+      <div class="stat"><span>Persentil ke-5</span><b id="m-p5">-</b></div>
+      <div class="stat"><span>Persentil ke-95</span><b id="m-p95">-</b></div>
+      <div class="stat"><span>Perubahan di persentil ke-5</span><b id="m-perubahan">-</b></div>
+      <div class="stat"><span>Peluang sempat menyentuh batas</span><b id="m-sempat">-</b></div>
+    </div>
+
+    <h3 class="sub">Histogram hasil akhir simulasi</h3>
+    <div class="chart-box"><canvas id="chart-akhir" aria-label="Histogram harga akhir simulasi"></canvas></div>
+    <p class="caption">Batang merah adalah skenario yang harga akhirnya di bawah batas (area risiko). Garis merah putus-putus adalah batas penurunan, garis biru adalah harga awal.</p>
+
+    <div class="panel how">
+      <h3>Cara membaca hasil</h3>
+      <ul class="plain">
+        <li><b>Probabilitas utama</b> adalah jawaban soal: peluang harga di hari terakhir berada di bawah batas.</li>
+        <li><b>Peluang sempat menyentuh batas</b> lebih tinggi karena menghitung harga yang pernah turun melewati batas di hari mana pun, meski di akhir periode naik lagi.</li>
+        <li><b>Persentil ke-5 dan ke-95</b> menunjukkan rentang harga akhir yang mencakup 90% skenario.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ========== KESIMPULAN ========== -->
+  <section id="kesimpulan" class="section">
+    <p class="eyebrow">Penutup</p>
+    <h2>Kesimpulan</h2>
+    <ol class="conclusion" id="kesimpulan-list">
+      <li>Menunggu hasil simulasi...</li>
+    </ol>
+    <h3 class="sub">Keterbatasan</h3>
+    <ul class="plain">
+      <li>Return harian Tesla memiliki ekor yang lebih tebal daripada distribusi Normal, sehingga kejadian ekstrem kemungkinan lebih sering di dunia nyata daripada di simulasi.</li>
+      <li>Simulasi mengasumsikan &mu; dan &sigma; konstan, padahal volatilitas saham berubah-ubah.</li>
+      <li>Data berakhir pada {{ d.tanggal_akhir }}, sehingga hasil menggambarkan risiko berdasarkan pola historis sampai tanggal tersebut dan bukan prediksi harga yang pasti.</li>
+    </ul>
+    <div class="actions">
+      <button type="button" class="btn btn-outline" id="btn-copy">Salin Ringkasan Hasil</button>
+      <a class="btn btn-primary" href="#ringkasan">Kembali ke Atas</a>
+    </div>
+    <p class="status-copy" id="copy-status" aria-live="polite"></p>
+  </section>
+
+</main>
+
+<footer>
+  <p>Pemodelan dan Simulasi &middot; Dosen: Mohammad Bayu Anggara, S.Kom., M.Kom.</p>
+  <p>Selsa Shafana Alfiyani &middot; 301240041</p>
+</footer>
+
+<script>
+  window.DATA = {{ d|tojson }};
+  window.BATAS = {{ b|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
